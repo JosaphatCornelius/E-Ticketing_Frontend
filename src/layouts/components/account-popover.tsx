@@ -1,6 +1,6 @@
 import type { IconButtonProps } from '@mui/material/IconButton';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
@@ -15,6 +15,8 @@ import MenuItem, { menuItemClasses } from '@mui/material/MenuItem';
 import { useRouter, usePathname } from 'src/routes/hooks';
 
 import { _myAccount } from 'src/_mock';
+import { UserModels } from 'src/models/UserModels';
+import GetSessionData from 'src/_mock/FetchSession';
 
 // ----------------------------------------------------------------------
 
@@ -27,12 +29,50 @@ export type AccountPopoverProps = IconButtonProps & {
   }[];
 };
 
+async function Logout() {
+  try {
+    const backendURL = import.meta.env.VITE_API_URL;
+    const response = await fetch(`${backendURL}/api/auth/logout`, {
+      method: 'DELETE',
+      credentials: 'include', // Important for retrieving session cookies
+      mode: 'cors',
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to logout');
+    }
+
+    const data = await response.json();
+
+    if (!data.data) {
+      return null;
+    }
+
+    return data.data;
+  } catch (error) {
+    console.log('Logout error:', error);
+  }
+}
+
 export function AccountPopover({ data = [], sx, ...other }: AccountPopoverProps) {
   const router = useRouter();
+  const [userSess, setUserSess] = useState<UserModels | null>(null);
 
   const pathname = usePathname();
 
   const [openPopover, setOpenPopover] = useState<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    async function FetchSession() {
+      const sessionUser: UserModels[] = await GetSessionData();
+
+      if (sessionUser) {
+        setUserSess(sessionUser[0]);
+      }
+    }
+
+    FetchSession();
+  }, [router]);
 
   const handleOpenPopover = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
     setOpenPopover(event.currentTarget);
@@ -83,53 +123,25 @@ export function AccountPopover({ data = [], sx, ...other }: AccountPopoverProps)
       >
         <Box sx={{ p: 2, pb: 1.5 }}>
           <Typography variant="subtitle2" noWrap>
-            {_myAccount?.displayName}
+            {userSess?.username}
           </Typography>
 
           <Typography variant="body2" sx={{ color: 'text.secondary' }} noWrap>
-            {_myAccount?.email}
+            {userSess?.userEmail}
           </Typography>
         </Box>
 
-        <Divider sx={{ borderStyle: 'dashed' }} />
-
-        <MenuList
-          disablePadding
-          sx={{
-            p: 1,
-            gap: 0.5,
-            display: 'flex',
-            flexDirection: 'column',
-            [`& .${menuItemClasses.root}`]: {
-              px: 1,
-              gap: 2,
-              borderRadius: 0.75,
-              color: 'text.secondary',
-              '&:hover': { color: 'text.primary' },
-              [`&.${menuItemClasses.selected}`]: {
-                color: 'text.primary',
-                bgcolor: 'action.selected',
-                fontWeight: 'fontWeightSemiBold',
-              },
-            },
-          }}
-        >
-          {data.map((option) => (
-            <MenuItem
-              key={option.label}
-              selected={option.href === pathname}
-              onClick={() => handleClickItem(option.href)}
-            >
-              {option.icon}
-              {option.label}
-            </MenuItem>
-          ))}
-        </MenuList>
-
-        <Divider sx={{ borderStyle: 'dashed' }} />
-
         <Box sx={{ p: 1 }}>
-          <Button fullWidth color="error" size="medium" variant="text">
+          <Button
+            fullWidth
+            color="error"
+            size="medium"
+            variant="text"
+            onClick={() => {
+              Logout();
+              router.replace('/sign-in'); // Redirect to login page if no session
+            }}
+          >
             Logout
           </Button>
         </Box>

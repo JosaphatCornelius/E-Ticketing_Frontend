@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
@@ -12,27 +12,31 @@ import MenuItem, { menuItemClasses } from '@mui/material/MenuItem';
 
 import { Label } from 'src/components/label';
 import { Iconify } from 'src/components/iconify';
+import { UserModels } from 'src/models/UserModels';
+import { Alert, Snackbar } from '@mui/material';
+import EditUserPopup from './EditUserPopup';
 
 // ----------------------------------------------------------------------
 
-export type UserProps = {
-  id: string;
-  name: string;
-  role: string;
-  status: string;
-  company: string;
-  avatarUrl: string;
-  isVerified: boolean;
-};
-
 type UserTableRowProps = {
-  row: UserProps;
+  row: UserModels;
   selected: boolean;
   onSelectRow: () => void;
+  onDeleteRow: (userID: string) => void; // baru
+  onUserUpdated: () => void;
+  onShowSnackbar: () => void; // ✅ NEW
 };
 
-export function UserTableRow({ row, selected, onSelectRow }: UserTableRowProps) {
+export function UserTableRow({
+  row,
+  selected,
+  onSelectRow,
+  onDeleteRow,
+  onUserUpdated,
+  onShowSnackbar
+}: UserTableRowProps) {
   const [openPopover, setOpenPopover] = useState<HTMLButtonElement | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   const handleOpenPopover = useCallback((event: React.MouseEvent<HTMLButtonElement>) => {
     setOpenPopover(event.currentTarget);
@@ -42,6 +46,15 @@ export function UserTableRow({ row, selected, onSelectRow }: UserTableRowProps) 
     setOpenPopover(null);
   }, []);
 
+  const handleOpenEdit = () => {
+    handleClosePopover(); // Tutup popover dulu
+    setEditOpen(true);
+  };
+
+  const handleCloseEdit = () => {
+    setEditOpen(false);
+  };
+
   return (
     <>
       <TableRow hover tabIndex={-1} role="checkbox" selected={selected}>
@@ -49,28 +62,15 @@ export function UserTableRow({ row, selected, onSelectRow }: UserTableRowProps) 
           <Checkbox disableRipple checked={selected} onChange={onSelectRow} />
         </TableCell>
 
-        <TableCell component="th" scope="row">
-          <Box gap={2} display="flex" alignItems="center">
-            <Avatar alt={row.name} src={row.avatarUrl} />
-            {row.name}
-          </Box>
-        </TableCell>
+        <TableCell>{row.username}</TableCell>
 
-        <TableCell>{row.company}</TableCell>
+        <TableCell>{row.userRole}</TableCell>
 
-        <TableCell>{row.role}</TableCell>
+        <TableCell>{row.userEmail}</TableCell>
 
-        <TableCell align="center">
-          {row.isVerified ? (
-            <Iconify width={22} icon="solar:check-circle-bold" sx={{ color: 'success.main' }} />
-          ) : (
-            '-'
-          )}
-        </TableCell>
+        <TableCell>{row.userAddress}</TableCell>
 
-        <TableCell>
-          <Label color={(row.status === 'banned' && 'error') || 'success'}>{row.status}</Label>
-        </TableCell>
+        <TableCell>{new Date(row.birthday.toString()).toLocaleString()}</TableCell>
 
         <TableCell align="right">
           <IconButton onClick={handleOpenPopover}>
@@ -102,17 +102,35 @@ export function UserTableRow({ row, selected, onSelectRow }: UserTableRowProps) 
             },
           }}
         >
-          <MenuItem onClick={handleClosePopover}>
+          <MenuItem onClick={handleOpenEdit}>
             <Iconify icon="solar:pen-bold" />
             Edit
           </MenuItem>
 
-          <MenuItem onClick={handleClosePopover} sx={{ color: 'error.main' }}>
+          <MenuItem
+            onClick={() => {
+              console.log('Delete clicked:', row.userID);
+              handleClosePopover();
+              onDeleteRow(row.userID);
+            }}
+            sx={{ color: 'error.main' }}
+          >
             <Iconify icon="solar:trash-bin-trash-bold" />
             Delete
           </MenuItem>
         </MenuList>
       </Popover>
+
+      <EditUserPopup
+        open={editOpen}
+        onClose={handleCloseEdit}
+        userData={row}
+        onUserUpdated={() => {
+          handleCloseEdit();
+          onUserUpdated();
+          onShowSnackbar(); // 🎉 Trigger snackbar here!
+        }}
+      />
     </>
   );
 }

@@ -6,6 +6,7 @@ import OutlinedInput from '@mui/material/OutlinedInput';
 import InputAdornment from '@mui/material/InputAdornment';
 
 import { Iconify } from 'src/components/iconify';
+import { Button } from '@mui/material';
 
 // ----------------------------------------------------------------------
 
@@ -13,9 +14,15 @@ type UserTableToolbarProps = {
   numSelected: number;
   filterName: string;
   onFilterName: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onDeleteUsers?: () => void; // Tambahkan ini
 };
 
-export function UserTableToolbar({ numSelected, filterName, onFilterName }: UserTableToolbarProps) {
+export function UserTableToolbar({
+  numSelected,
+  filterName,
+  onFilterName,
+  onDeleteUsers,
+}: UserTableToolbarProps) {
   return (
     <Toolbar
       sx={{
@@ -38,7 +45,7 @@ export function UserTableToolbar({ numSelected, filterName, onFilterName }: User
           fullWidth
           value={filterName}
           onChange={onFilterName}
-          placeholder="Search user..."
+          placeholder="Search User..."
           startAdornment={
             <InputAdornment position="start">
               <Iconify width={20} icon="eva:search-fill" sx={{ color: 'text.disabled' }} />
@@ -49,11 +56,13 @@ export function UserTableToolbar({ numSelected, filterName, onFilterName }: User
       )}
 
       {numSelected > 0 ? (
-        <Tooltip title="Delete">
-          <IconButton>
-            <Iconify icon="solar:trash-bin-trash-bold" />
-          </IconButton>
-        </Tooltip>
+        <Button
+          color="error"
+          startIcon={<Iconify icon="material-symbols:delete-outline" />}
+          onClick={onDeleteUsers} // props baru
+        >
+          Delete
+        </Button>
       ) : (
         <Tooltip title="Filter list">
           <IconButton>

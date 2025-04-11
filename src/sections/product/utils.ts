@@ -1,4 +1,4 @@
-import { UserModels } from 'src/models/UserModels';
+import { FlightModels } from 'src/models/FlightModels';
 
 // ----------------------------------------------------------------------
 
@@ -53,7 +53,7 @@ export function getComparator<Key extends keyof any>(
 // ----------------------------------------------------------------------
 
 type ApplyFilterProps = {
-  inputData: UserModels[];
+  inputData: FlightModels[];
   filterName: string;
   comparator: (a: any, b: any) => number;
 };
@@ -71,7 +71,7 @@ export function applyFilter({ inputData, comparator, filterName }: ApplyFilterPr
 
   if (filterName) {
     inputData = inputData.filter(
-      (user) => user.username.toLowerCase().indexOf(filterName.toLowerCase()) !== -1
+      (user) => user.flightDestination.toLowerCase().indexOf(filterName.toLowerCase()) !== -1
     );
   }
 
