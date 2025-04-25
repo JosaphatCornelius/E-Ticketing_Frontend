@@ -73,7 +73,7 @@ export function SignUpView() {
     setIsLoading(false);
 
     if (success) {
-      router.push('/');
+      router.push('/sign-in');
     } else {
       setAlertOpen(true);
     }

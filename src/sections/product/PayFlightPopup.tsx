@@ -11,6 +11,7 @@ import {
 } from '@mui/material';
 import { FlightModels } from 'src/models/FlightModels';
 import { UserModels } from 'src/models/UserModels';
+import { BookingModels } from 'src/models/BookingModels';
 
 interface PayFlightPopupProps {
   open: boolean;
@@ -19,6 +20,7 @@ interface PayFlightPopupProps {
   onPay: (bookedSeat: number) => void;
   airlineData: UserModels[];
   seatCount: number;
+  booking: BookingModels;
   bookingLoading: boolean;
 }
 
@@ -30,6 +32,7 @@ const PayFlightPopup: React.FC<PayFlightPopupProps> = ({
   airlineData,
   seatCount,
   bookingLoading,
+  booking
 }) => (
   <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
     <DialogTitle>Flight Details</DialogTitle>
@@ -44,13 +47,13 @@ const PayFlightPopup: React.FC<PayFlightPopupProps> = ({
       <Typography variant="body1">
         Arrival: {new Date(flight.flightArrival).toLocaleString()}
       </Typography>
-      <Typography variant="body1">Seat Remaining: {flight.flightSeat}</Typography>
+      <Typography variant="body1">Seat Booked: {booking.seatAmount}</Typography>
       <Typography variant="body1">
         Price:{' '}
         {Intl.NumberFormat('id-ID', {
           style: 'currency',
           currency: 'IDR',
-        }).format(flight.flightPrice)}
+        }).format(booking.bookingPrice)}
       </Typography>
       <Typography variant="body1">Amount of Seat: {seatCount}</Typography>
 

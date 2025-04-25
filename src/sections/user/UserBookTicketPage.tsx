@@ -16,8 +16,10 @@ import {
   Alert,
   Snackbar,
 } from '@mui/material';
+import { useLocation } from 'react-router-dom';
 import { FlightModels } from 'src/models/FlightModels';
 import { useRouter } from 'src/routes/hooks';
+import { formatDateUTCOffset } from 'src/utils/dateUtils';
 import { UserModels } from 'src/models/UserModels';
 import GetSessionData from 'src/_mock/FetchSession';
 import { AccountPopover } from 'src/layouts/components/account-popover';
@@ -27,12 +29,9 @@ import { ResponseModels } from 'src/models/ResponseModels';
 import FetchFlights from 'src/_mock/FetchFlights';
 import { BookingModels } from 'src/models/BookingModels';
 import FetchBookings from 'src/_mock/FetchBookings';
+import FetchUsers from 'src/_mock/FetchUsers';
 import planeImg from './images/plane_wing1.jpg';
 import FlightDetailPopup from '../product/FlightDetailPopup';
-
-interface UserFlightTicketsProps {
-  flights: FlightModels[];
-}
 
 async function createBooking(booking: BookingModels) {
   try {
@@ -59,12 +58,19 @@ async function createBooking(booking: BookingModels) {
   }
 }
 
-const UserBookTicketPage: React.FC<UserFlightTicketsProps> = ({ flights }) => {
+const UserBookTicketPage = () => {
   const router = useRouter();
 
-  const [from, setFrom] = useState('');
-  const [destination, setDestination] = useState('');
-  const [flightTime, setFlightTime] = useState('');
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+
+  const [from, setFrom] = useState(searchParams.get('from') ?? '');
+  const [destination, setDestination] = useState(searchParams.get('destination') ?? '');
+  const [flightTime, setFlightTime] = useState(searchParams.get('departure') ?? '');
+
+  const [tempFrom, setTempFrom] = useState(from);
+  const [tempDestination, setTempDestination] = useState(destination);
+  const [tempFlightTime, setTempFlightTime] = useState(flightTime);
 
   const [userData, setUserData] = useState<UserModels[]>([]);
   const [userSess, setUserSess] = useState<UserModels | null>(null);
@@ -104,30 +110,42 @@ const UserBookTicketPage: React.FC<UserFlightTicketsProps> = ({ flights }) => {
   useEffect(() => {
     async function FetchData() {
       try {
-        const [bookings, flightsPromise] = await Promise.allSettled([
+        const [bookings, flightsPromise, users] = await Promise.allSettled([
           FetchBookings(userSess?.userID ?? ''),
-          FetchFlights(),
+          FetchFlights(from, destination, flightTime),
+          FetchUsers(),
         ]);
 
         if (bookings.status === 'fulfilled') setBookingData(bookings.value);
         else console.error('Failed to fetch booking:', bookings.reason);
 
-        if (flightsPromise.status === 'fulfilled') setFlightData(flightsPromise.value);
-        else console.error('Failed to fetch flights:', flightsPromise.reason);
+        if (flightsPromise.status === 'fulfilled') {
+          setFlightData(flightsPromise.value);
+        } else {
+          console.error('Failed to fetch flights:', flightsPromise.reason);
+          setSnackbarMessage('Failed to fetch flight data. Please try again later.');
+          setSnackbarSeverity('error');
+          setSnackbarOpen(true);
+        }
+
+        if (users.status === 'fulfilled') setUserData(users.value);
+        else console.error('Failed to fetch users:', users.reason);
       } catch (error) {
         console.error('Unexpected error:', error);
       }
     }
 
-    FetchData();
-  }, [userSess?.userID]);
+    if (userSess) {
+      FetchData();
+    }
+  }, [userSess, destination, flightTime, from]);
 
-  const filteredFlights = flights.filter(
-    (flight) =>
-      flight.flightFrom.toLowerCase().includes(from.toLowerCase()) &&
-      flight.flightDestination.toLowerCase().includes(destination.toLowerCase()) &&
-      (flightTime === '' || new Date(flight.flightTime).toISOString().startsWith(flightTime))
-  );
+  // const filteredFlights = flights.filter(
+  //   (flight) =>
+  //     flight.flightFrom.toLowerCase().includes(from.toLowerCase()) &&
+  //     flight.flightDestination.toLowerCase().includes(destination.toLowerCase()) &&
+  //     (flightTime === '' || new Date(flight.flightTime).toISOString().startsWith(flightTime))
+  // );
 
   const handleBuyFlight = async (flight: FlightModels) => {
     if (!selectedFlight || !userSess) return;
@@ -148,10 +166,10 @@ const UserBookTicketPage: React.FC<UserFlightTicketsProps> = ({ flights }) => {
         bookingConfirmation: 'waiting for payment',
         seatAmount: seatCount,
       };
-      
+
       await createBooking(bookingDatas);
 
-      const updatedFlights = await FetchFlights();
+      const updatedFlights = await FetchFlights(from, destination, flightTime);
       setFlightData(updatedFlights);
 
       setSnackbarMessage('Flight booked successfully!');
@@ -170,6 +188,12 @@ const UserBookTicketPage: React.FC<UserFlightTicketsProps> = ({ flights }) => {
 
   const handleSnackbarClose = () => {
     setSnackbarOpen(false);
+  };
+
+  const handleSearch = () => {
+    setFrom(tempFrom.trim());
+    setDestination(tempDestination.trim());
+    setFlightTime(tempFlightTime);
   };
 
   return (
@@ -256,25 +280,31 @@ const UserBookTicketPage: React.FC<UserFlightTicketsProps> = ({ flights }) => {
           >
             <TextField
               label="From"
-              value={from}
-              onChange={(e) => setFrom(e.target.value)}
+              value={tempFrom}
+              onChange={(e) => setTempFrom(e.target.value)}
               size="small"
             />
             <TextField
               label="Destination"
-              value={destination}
-              onChange={(e) => setDestination(e.target.value)}
+              value={tempDestination}
+              onChange={(e) => setTempDestination(e.target.value)}
               size="small"
             />
             <TextField
               label="Departure"
               type="date"
-              value={flightTime}
-              onChange={(e) => setFlightTime(e.target.value)}
+              value={tempFlightTime}
+              onChange={(e) => setTempFlightTime(e.target.value)}
               size="small"
               InputLabelProps={{ shrink: true }}
             />
-            <Button variant="contained" sx={{ px: 4 }}>
+            <Button
+              variant="contained"
+              sx={{ px: 4 }}
+              onClick={() => {
+                handleSearch();
+              }}
+            >
               Search
             </Button>
           </Box>
@@ -282,64 +312,72 @@ const UserBookTicketPage: React.FC<UserFlightTicketsProps> = ({ flights }) => {
       </Box>
 
       {/* Flight List */}
-      <Container sx={{ py: 6 }}>
+      <Container sx={{ py: 6, minHeight: '35vh' }}>
         <Typography variant="h5" gutterBottom fontWeight="medium">
-          My Booked Flights
+          Available Flights
         </Typography>
 
         <Grid container spacing={3}>
-          {filteredFlights.map((flight) => (
-            <Grid item xs={12} sm={6} md={4} key={flight.flightID}>
-              <Card
-                sx={{
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  borderRadius: 4,
-                  boxShadow: 3,
-                  backgroundColor: '#fdfdfd',
-                }}
-              >
-                <CardContent>
-                  <Typography variant="h6" gutterBottom color="primary">
-                    {flight.flightFrom} ➔ {flight.flightDestination}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Flight ID: {flight.flightID}
-                  </Typography>
-                  <Typography variant="body1" sx={{ mt: 1 }}>
-                    Departure: {new Date(flight.flightTime).toUTCString()}
-                  </Typography>
-                  <Typography variant="body1">
-                    Arrival: {new Date(flight.flightArrival).toUTCString()}
-                  </Typography>
-                  <Typography variant="body1">
-                    Remaining Seats: {flight.flightSeat}
-                  </Typography>
-                  <Typography variant="body1">
-                    Price:{' '}
-                    {Intl.NumberFormat('id-ID', {
-                      style: 'currency',
-                      currency: 'IDR',
-                    }).format(flight.flightPrice)}
-                  </Typography>
-                </CardContent>
-                <Box sx={{ p: 2, pt: 0 }}>
-                  <Button
-                    variant="contained"
-                    fullWidth
-                    onClick={() => {
-                      setSelectedFlight(flight);
-                      setOpenDetailPopup(true);
+          {flightData.length > 0 ? (
+            flightData
+              .filter((f) => f.flightSeat > 0)
+              .map((flight) => (
+                <Grid item xs={12} sm={6} md={4} key={flight.flightID}>
+                  <Card
+                    sx={{
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      borderRadius: 4,
+                      boxShadow: 3,
+                      backgroundColor: '#fdfdfd',
                     }}
                   >
-                    Book Flight
-                  </Button>
-                </Box>
-              </Card>
+                    <CardContent>
+                      <Typography variant="h6" gutterBottom color="primary">
+                        {flight.flightFrom} ➔ {flight.flightDestination}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Flight ID: {flight.flightID}
+                      </Typography>
+                      <Typography variant="body1" sx={{ mt: 1 }}>
+                        Departure: {formatDateUTCOffset(flight.flightTime, 7)} WIB
+                      </Typography>
+                      <Typography variant="body1">
+                        Arrival: {formatDateUTCOffset(flight.flightArrival, 7)} WIB
+                      </Typography>
+                      <Typography variant="body1">Remaining Seats: {flight.flightSeat}</Typography>
+                      <Typography variant="body1">
+                        Price:{' '}
+                        {Intl.NumberFormat('id-ID', {
+                          style: 'currency',
+                          currency: 'IDR',
+                        }).format(flight.flightPrice)}
+                      </Typography>
+                    </CardContent>
+                    <Box sx={{ p: 2, pt: 0 }}>
+                      <Button
+                        variant="contained"
+                        fullWidth
+                        onClick={() => {
+                          setSelectedFlight(flight);
+                          setOpenDetailPopup(true);
+                        }}
+                      >
+                        Book Flight
+                      </Button>
+                    </Box>
+                  </Card>
+                </Grid>
+              ))
+          ) : (
+            <Grid item xs={12}>
+              <Typography variant="body1" color="text.secondary" align="center">
+                No flights found.
+              </Typography>
             </Grid>
-          ))}
+          )}
         </Grid>
       </Container>
 

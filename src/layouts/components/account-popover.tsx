@@ -11,6 +11,7 @@ import MenuList from '@mui/material/MenuList';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import MenuItem, { menuItemClasses } from '@mui/material/MenuItem';
+import EditUserPopup from 'src/sections/user/EditUserPopup';
 
 import { useRouter, usePathname } from 'src/routes/hooks';
 
@@ -57,6 +58,7 @@ async function Logout() {
 export function AccountPopover({ data = [], sx, ...other }: AccountPopoverProps) {
   const router = useRouter();
   const [userSess, setUserSess] = useState<UserModels | null>(null);
+  const [openEditPopup, setOpenEditPopup] = useState(false);
 
   const pathname = usePathname();
 
@@ -131,6 +133,23 @@ export function AccountPopover({ data = [], sx, ...other }: AccountPopoverProps)
           </Typography>
         </Box>
 
+        {userSess?.userRole !== 'user' ? (
+          <Box sx={{ p: 1 }}>
+            <Button
+              fullWidth
+              color="info"
+              size="medium"
+              variant="text"
+              onClick={() => {
+                handleClosePopover();
+                setOpenEditPopup(true);
+              }}
+            >
+              Edit Account
+            </Button>
+          </Box>
+        ) : null}
+
         <Box sx={{ p: 1 }}>
           <Button
             fullWidth
@@ -146,6 +165,20 @@ export function AccountPopover({ data = [], sx, ...other }: AccountPopoverProps)
           </Button>
         </Box>
       </Popover>
+
+      {openEditPopup && (
+        <EditUserPopup
+          open={openEditPopup}
+          onClose={() => setOpenEditPopup(false)}
+          userData={userSess}
+          onUserUpdated={async () => {
+            const updatedSession = await GetSessionData();
+            if (updatedSession) {
+              setUserSess(updatedSession[0]);
+            }
+          }}
+        />
+      )}
     </>
   );
 }

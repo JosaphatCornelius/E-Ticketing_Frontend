@@ -15,7 +15,7 @@ export default function Page() {
   useEffect(() => {
     async function FetchData() {
       try {
-        const [flights] = await Promise.allSettled([FetchFlights()]);
+        const [flights] = await Promise.allSettled([FetchFlights('', '', '')]);
 
         if (flights.status === 'fulfilled') setFlightData(flights.value);
         else console.error('Failed to fetch flights:', flights.reason);

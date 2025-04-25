@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { formatDateUTCOffset } from 'src/utils/dateUtils';
 
 import Box from '@mui/material/Box';
 import Avatar from '@mui/material/Avatar';
@@ -17,6 +18,7 @@ import FetchUsers from 'src/_mock/FetchUsers';
 import { UserModels } from 'src/models/UserModels';
 import GetSessionData from 'src/_mock/FetchSession';
 import { useRouter } from 'src/routes/hooks';
+import EditFlightPopup from './EditFlightPopup';
 
 // ----------------------------------------------------------------------
 
@@ -25,6 +27,8 @@ type ProductTableRowProps = {
   selected: boolean;
   onSelectRow: () => void;
   onViewDetails: () => void; // 👈 Add this
+  onFlightsDataUpdated: () => void; // <- add this
+  onFlightDelete: () => void;
 };
 
 export function ProductTableRow({
@@ -32,11 +36,14 @@ export function ProductTableRow({
   selected,
   onSelectRow,
   onViewDetails, // 👈 Add this
+  onFlightsDataUpdated,
+  onFlightDelete,
 }: ProductTableRowProps) {
   const router = useRouter();
 
   const [userData, setUserData] = useState<UserModels[]>([]);
   const [userSess, setUserSess] = useState<UserModels | null>(null);
+  const [openPopup, setOpenPopup] = useState(false);
 
   const [openPopover, setOpenPopover] = useState<HTMLButtonElement | null>(null);
 
@@ -80,20 +87,6 @@ export function ProductTableRow({
   return (
     <>
       <TableRow hover tabIndex={-1} role="checkbox" selected={selected}>
-        {userSess?.userRole === 'airline' && (
-          <TableCell padding="checkbox">
-            <Checkbox disableRipple checked={selected} onChange={onSelectRow} />
-          </TableCell>
-        )}
-
-        {/* 
-        <TableCell component="th" scope="row">
-          <Box gap={2} display="flex" alignItems="center">
-            <Avatar alt={row.username} src={row.avatarUrl} />
-            {row.name}
-          </Box>
-        </TableCell> */}
-
         <TableCell>{row.flightDestination}</TableCell>
 
         <TableCell>{row.flightFrom}</TableCell>
@@ -102,9 +95,9 @@ export function ProductTableRow({
           {userData.find((x) => x.userID === row.airlineID)?.username || 'Unknown'}
         </TableCell>
 
-        <TableCell>{new Date(row.flightTime.toString()).toLocaleString()}</TableCell>
+        <TableCell>{formatDateUTCOffset(row.flightTime, 7)} WIB</TableCell>
 
-        <TableCell>{new Date(row.flightArrival.toString()).toLocaleString()}</TableCell>
+        <TableCell>{formatDateUTCOffset(row.flightArrival, 7)} WIB</TableCell>
 
         <TableCell>{row.flightSeat}</TableCell>
 
@@ -114,18 +107,6 @@ export function ProductTableRow({
             currency: 'IDR',
           }).format(row.flightPrice)}
         </TableCell>
-
-        {/* <TableCell align="center">
-          {row.isVerified ? (
-            <Iconify width={22} icon="solar:check-circle-bold" sx={{ color: 'success.main' }} />
-          ) : (
-            '-'
-          )}
-        </TableCell> */}
-        {/* 
-        <TableCell>
-          <Label color={(row.status === 'banned' && 'error') || 'success'}>{row.status}</Label>
-        </TableCell> */}
 
         {userSess?.userRole === 'airline' ? (
           <TableCell align="right">
@@ -141,6 +122,16 @@ export function ProductTableRow({
           </TableCell>
         ) : null}
       </TableRow>
+
+      <EditFlightPopup
+        open={openPopup}
+        onClose={() => setOpenPopup(false)}
+        flightsData={row}
+        onFlightDataUpdated={() => {
+          setOpenPopup(false);
+          onFlightsDataUpdated();
+        }}
+      />
 
       {/* Airline Popover Actions */}
       {userSess?.userRole === 'airline' && (
@@ -167,22 +158,23 @@ export function ProductTableRow({
               },
             }}
           >
-            {/* <MenuItem
-                onClick={() => {
-                  onViewDetails();
-                  handleClosePopover();
-                }}
-              >
-                <Iconify icon="mdi:eye-outline" />
-                View
-              </MenuItem> */}
-
-            <MenuItem onClick={handleClosePopover}>
+            <MenuItem
+              onClick={() => {
+                setOpenPopup(true);
+                handleClosePopover();
+              }}
+            >
               <Iconify icon="solar:pen-bold" />
               Edit
             </MenuItem>
 
-            <MenuItem onClick={handleClosePopover} sx={{ color: 'error.main' }}>
+            <MenuItem
+              onClick={() => {
+                onFlightDelete();
+                handleClosePopover();
+              }}
+              sx={{ color: 'error.main' }}
+            >
               <Iconify icon="solar:trash-bin-trash-bold" />
               Delete
             </MenuItem>

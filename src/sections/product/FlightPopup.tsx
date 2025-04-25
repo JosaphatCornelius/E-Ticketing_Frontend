@@ -68,7 +68,7 @@ const FlightPopup: React.FC<FlightPopupProps> = ({ open, onClose, onAddFlight })
       try {
         const [users, flights, airlines] = await Promise.allSettled([
           FetchUsers(),
-          FetchFlights(),
+          FetchFlights('', '', ''),
           FetchAirlines(),
         ]);
 
@@ -149,7 +149,6 @@ const FlightPopup: React.FC<FlightPopupProps> = ({ open, onClose, onAddFlight })
       flightPrice:
         flightData.flightPrice === null ||
         flightData.flightPrice === undefined ||
-        // flightData.flightPrice === '' ||
         Number.isNaN(flightData.flightPrice) ||
         Number(flightData.flightPrice) <= 0
           ? 'Flight price must be greater than 0'
@@ -157,13 +156,32 @@ const FlightPopup: React.FC<FlightPopupProps> = ({ open, onClose, onAddFlight })
       flightSeat:
         flightData.flightSeat === null ||
         flightData.flightSeat === undefined ||
-        // flightData.flightSeat === '' ||
         Number.isNaN(flightData.flightSeat) ||
         Number(flightData.flightSeat) <= 0
           ? 'Flight seat must be greater than 0'
           : '',
       bookedSeat: '',
     };
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const hMinusOne = new Date(today);
+    hMinusOne.setDate(today.getDate() + 1);
+
+    if (flightData.flightTime <= hMinusOne) {
+      newErrors.flightTime = 'Flight time must be at least tomorrow';
+    }
+
+    if (flightData.flightArrival <= hMinusOne) {
+      newErrors.flightArrival = 'Flight arrival must be at least tomorrow';
+    }
+
+    // ✅ New restriction: flightTime cannot be after flightArrival
+    if (flightData.flightTime > flightData.flightArrival) {
+      newErrors.flightTime = 'Departure time cannot be after arrival time';
+      newErrors.flightArrival = 'Arrival time must be after departure time';
+    }
 
     setErrors(newErrors);
 
@@ -177,7 +195,11 @@ const FlightPopup: React.FC<FlightPopupProps> = ({ open, onClose, onAddFlight })
       const response = await fetch(`${backendURL}/api/flight/post-flight`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(flightData),
+        body: JSON.stringify({
+          ...flightData,
+          flightTime: flightData.flightTime.toISOString(),
+          flightArrival: flightData.flightArrival.toISOString(),
+        }),        
         mode: 'cors',
       });
 
@@ -192,6 +214,12 @@ const FlightPopup: React.FC<FlightPopupProps> = ({ open, onClose, onAddFlight })
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatDateToLocalInput = (date: Date) => {
+    const offset = date.getTimezoneOffset();
+    const localDate = new Date(date.getTime() - offset * 60 * 1000);
+    return localDate.toISOString().slice(0, 16);
   };
 
   return (
@@ -225,8 +253,8 @@ const FlightPopup: React.FC<FlightPopupProps> = ({ open, onClose, onAddFlight })
         <TextField
           label="Departure"
           name="flightTime"
-          type="date"
-          value={flightData.flightTime.toISOString().split('T')[0]}
+          type="datetime-local"
+          value={formatDateToLocalInput(flightData.flightTime)}
           onChange={handleDateTime}
           fullWidth
           margin="dense"
@@ -239,8 +267,8 @@ const FlightPopup: React.FC<FlightPopupProps> = ({ open, onClose, onAddFlight })
         <TextField
           label="Flight Arrival"
           name="flightArrival"
-          type="date"
-          value={flightData.flightArrival.toISOString().split('T')[0]}
+          type="datetime-local"
+          value={formatDateToLocalInput(flightData.flightArrival)}
           onChange={handleDateArrival}
           fullWidth
           margin="dense"
@@ -250,23 +278,6 @@ const FlightPopup: React.FC<FlightPopupProps> = ({ open, onClose, onAddFlight })
           InputLabelProps={{ shrink: true }}
           sx={{ my: 2 }}
         />
-        {/* <TextField
-          select
-          label="Airline ID"
-          name="airlineID"
-          value={flightData.airlineID}
-          onChange={handleChange}
-          fullWidth
-          margin="dense"
-          required
-          error={!!errors.airlineID}
-          helperText={errors.airlineID}
-          sx={{ my: 2 }}
-        >
-          {userData.map((users) =>
-            users.userRole === 'airline' ? <MenuItem value="">{users.username}</MenuItem> : null
-          )}
-        </TextField> */}
         <TextField
           label="Flight Seat"
           name="flightSeat"
@@ -293,38 +304,6 @@ const FlightPopup: React.FC<FlightPopupProps> = ({ open, onClose, onAddFlight })
           helperText={errors.flightPrice}
           sx={{ my: 2 }}
         />
-        {/* <TextField
-          select
-          label="Payment Status"
-          name="paymentStatus"
-          value={flightData.paymentStatus}
-          onChange={handleChange}
-          fullWidth
-          margin="dense"
-          required
-          error={!!errors.paymentStatus}
-          helperText={errors.paymentStatus}
-          sx={{ my: 2 }}
-        >
-          <MenuItem value="y">Paid</MenuItem>
-          <MenuItem value="n">Not Paid</MenuItem>
-        </TextField> */}
-        {/* <TextField
-          select
-          label="Flight Confirmation"
-          name="flightConfirmation"
-          value={flightData.flightConfirmation}
-          onChange={handleChange}
-          fullWidth
-          margin="dense"
-          required
-          error={!!errors.flightConfirmation}
-          helperText={errors.flightConfirmation}
-          sx={{ my: 2 }}
-        >
-          <MenuItem value="y">Confirmed</MenuItem>
-          <MenuItem value="n">Not Confirmed</MenuItem>
-        </TextField> */}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} disabled={loading}>

@@ -4,7 +4,7 @@ import { ResponseModels } from "src/models/ResponseModels";
 export default async function FetchAirlines(): Promise<AirlineModels[]> {
   try {
     const backendURL = import.meta.env.VITE_API_URL;
-    const response = await fetch(`${backendURL}/api/flight/get-flight-list`);
+    const response = await fetch(`${backendURL}/api/airline/get-airline-list`);
 
     if (!response.ok) {
       throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);

@@ -9,30 +9,13 @@ import UserBookTicketPage from 'src/sections/user/UserBookTicketPage';
 // ----------------------------------------------------------------------
 
 export default function Page() {
-  const [flightData, setFlightData] = useState<FlightModels[]>([]);
-
-  useEffect(() => {
-    async function FetchData() {
-      try {
-        const [flights] = await Promise.allSettled([FetchFlights()]);
-
-        if (flights.status === 'fulfilled') setFlightData(flights.value);
-        else console.error('Failed to fetch flights:', flights.reason);
-      } catch (error) {
-        console.error('Unexpected error:', error);
-      }
-    }
-
-    FetchData();
-  }, []);
-
   return (
     <>
       <Helmet>
         <title>Home Page</title>
       </Helmet>
 
-      <UserBookTicketPage flights={flightData}/>
+      <UserBookTicketPage/>
     </>
   );
 }

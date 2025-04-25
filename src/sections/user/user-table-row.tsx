@@ -70,7 +70,7 @@ export function UserTableRow({
 
         <TableCell>{row.userAddress}</TableCell>
 
-        <TableCell>{new Date(row.birthday.toString()).toLocaleString()}</TableCell>
+        <TableCell>{new Date(row.birthday.toString()).toDateString()}</TableCell>
 
         <TableCell align="right">
           <IconButton onClick={handleOpenPopover}>

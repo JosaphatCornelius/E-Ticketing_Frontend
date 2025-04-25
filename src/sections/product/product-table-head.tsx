@@ -28,23 +28,11 @@ export function ProductTableHead({
   headLabel,
   numSelected,
   onSelectAllRows,
-  userRole
+  userRole,
 }: ProductTableHeadProps) {
   return (
     <TableHead>
       <TableRow>
-        {userRole === 'airline' && (
-          <TableCell padding="checkbox">
-            <Checkbox
-              indeterminate={numSelected > 0 && numSelected < rowCount}
-              checked={rowCount > 0 && numSelected === rowCount}
-              onChange={(event: React.ChangeEvent<HTMLInputElement>) =>
-                onSelectAllRows(event.target.checked)
-              }
-            />
-          </TableCell>
-        )}
-
         {headLabel.map((headCell) => (
           <TableCell
             key={headCell.id}

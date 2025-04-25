@@ -102,7 +102,7 @@ export function ProductsView() {
       try {
         const [users, flights, airlines] = await Promise.allSettled([
           FetchUsers(),
-          FetchFlights(),
+          FetchFlights('', '', ''),
           FetchAirlines(),
         ]);
 
@@ -128,7 +128,7 @@ export function ProductsView() {
   const handleFlightAdded = async () => {
     setLoading(true);
     try {
-      const updatedFlights = await FetchFlights();
+      const updatedFlights = await FetchFlights('', '', '');
       setFlightData(Array.isArray(updatedFlights) ? updatedFlights : []);
     } catch (error) {
       console.error('Failed to refresh flights:', error);
@@ -158,7 +158,7 @@ export function ProductsView() {
     try {
       await patchFlightUserID(selectedFlight.flightID, userSess.userID, flight, seatCount);
 
-      const updatedFlights = await FetchFlights();
+      const updatedFlights = await FetchFlights('', '', '');
       setFlightData(updatedFlights);
 
       setSnackbarMessage('Flight booked successfully!');
@@ -192,11 +192,45 @@ export function ProductsView() {
     FetchSession();
   }, [router]);
 
+  const handleFlightDelete = async (flightID: string) => {
+    try {
+      const backendURL = import.meta.env.VITE_API_URL;
+
+      const response = await fetch(`${backendURL}/api/flight/delete-flight?flightID=${flightID}`, {
+        method: 'DELETE',
+      });
+
+      const data: ResponseModels<null> = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to delete flight');
+      }
+
+      // Refresh flight data after deletion
+      const updatedFlights = await FetchFlights('', '', '');
+      setFlightData(updatedFlights);
+
+      setSnackbarMessage('Flight deleted successfully!');
+      setSnackbarSeverity('success');
+      setSnackbarOpen(true);
+    } catch (error) {
+      console.error('Failed to delete flight:', error);
+      setSnackbarMessage(`Failed to delete flight: ${error.message}`);
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
+    }
+  };
+
   // Apply filters to the fetched data
+  const filteredByRole =
+    userSess?.userRole === 'airline'
+      ? flightData.filter((flight) => flight.airlineID === userSess.userID)
+      : flightData;
+
   const dataFiltered: FlightModels[] = applyFilter({
-    inputData: flightData,
+    inputData: filteredByRole,
     comparator: getComparator(table.order, table.orderBy),
-    filterName: '', // no longer used here
+    filterName: '',
   }).filter((flight) => {
     const matchesFrom = filterFrom
       ? flight.flightFrom.toLowerCase().includes(filterFrom.toLowerCase())
@@ -299,6 +333,8 @@ export function ProductsView() {
                         selected={table.selected.includes(row.flightID)}
                         onSelectRow={() => table.onSelectRow(row.flightID)}
                         onViewDetails={() => handleViewFlightDetails(row)} // 👈 Add this
+                        onFlightsDataUpdated={() => handleFlightAdded()} // 🔁 passed refresh function
+                        onFlightDelete={() => handleFlightDelete(row.flightID)}
                       />
                     ))
                 )}

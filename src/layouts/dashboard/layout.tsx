@@ -100,11 +100,17 @@ export function DashboardLayout({ sx, children, header }: DashboardLayoutProps) 
       icon: icon('ic-blog'),
     };
 
+    const paymentHistory = {
+      title: 'Payment History',
+      path: '/paymentHistory',
+      icon: icon('ic-blog'),
+    };
+
     switch (userSess.userRole) {
       case 'admin':
         return [dashboard, userPage, commonFlights, paymentConfirmation];
       case 'airline':
-        return [dashboard, commonFlights];
+        return [dashboard, commonFlights, paymentHistory];
       case 'user':
         return [commonFlights];
       default:

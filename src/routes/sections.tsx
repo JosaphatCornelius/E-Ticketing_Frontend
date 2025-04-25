@@ -13,6 +13,7 @@ import { DashboardLayout } from 'src/layouts/dashboard';
 export const HomePage = lazy(() => import('src/pages/home'));
 export const BookPage = lazy(() => import('src/pages/bookTicketPage'));
 export const BlogPage = lazy(() => import('src/pages/paymentConfirmation'));
+export const HistoryPage = lazy(() => import('src/pages/paymentHistory'));
 export const HomePage1 = lazy(() => import('src/pages/homePage'));
 export const UserPage = lazy(() => import('src/pages/user'));
 export const SignInPage = lazy(() => import('src/pages/sign-in'));
@@ -50,6 +51,7 @@ export function Router() {
         { path: 'user', element: <UserPage /> },
         { path: 'flights', element: <ProductsPage /> },
         { path: 'paymentConfirmation', element: <BlogPage /> },
+        { path: 'paymentHistory', element: <HistoryPage /> },
       ],
     },
     {

@@ -19,7 +19,6 @@ import { Scrollbar } from 'src/components/scrollbar';
 import { TableCell, TableHead, TableRow } from '@mui/material';
 import { TableNoData } from 'src/sections/user/table-no-data';
 import { TableEmptyRows } from 'src/sections/user/table-empty-rows';
-import { UserTableToolbar } from 'src/sections/user/user-table-toolbar';
 import { ResponseModels } from 'src/models/ResponseModels';
 import { BookingModels } from 'src/models/BookingModels';
 import FetchBookings from 'src/_mock/FetchBookings';
@@ -27,6 +26,7 @@ import FetchUsers from 'src/_mock/FetchUsers';
 import { UserModels } from 'src/models/UserModels';
 import FlightConfirmationTableRow from '../FlightConfirmationTableRow';
 import { applyFilter, emptyRows, getComparator } from '../utils';
+import { ConfirmToolbar } from '../confirm-toolbar';
 
 // ----------------------------------------------------------------------
 
@@ -59,6 +59,7 @@ export function FlightConfirmationView() {
   const table = useTable();
   const router = useRouter();
 
+  const [userSess, setUserSess] = useState<UserModels | null>(null);
   const [userData, setUserData] = useState<UserModels[]>([]);
   const [bookingData, setBookingData] = useState<BookingModels[]>([]);
   const [flights, setFlights] = useState<FlightModels[]>([]);
@@ -71,7 +72,7 @@ export function FlightConfirmationView() {
         const [users, bookings, flightsPromise] = await Promise.allSettled([
           FetchUsers(),
           FetchBookings(''),
-          FetchFlights(),
+          FetchFlights('', '', ''),
         ]);
 
         if (users.status === 'fulfilled') setUserData(users.value);
@@ -93,6 +94,23 @@ export function FlightConfirmationView() {
   }, []);
 
   useEffect(() => {
+    async function FetchSession() {
+      const sessionUser: UserModels[] = await GetSessionData();
+
+      if (sessionUser) {
+        setUserSess(sessionUser[0]); // Set user if session exists
+        if (sessionUser[0].userRole === 'user') {
+          router.replace('/');
+        }
+      } else {
+        router.replace('/sign-in'); // Redirect to login page if no session
+      }
+    }
+
+    FetchSession();
+  }, [router]);
+
+  useEffect(() => {
     async function checkSession() {
       const sessionUser = await GetSessionData();
 
@@ -104,21 +122,19 @@ export function FlightConfirmationView() {
     checkSession();
   }, [router]);
 
-  const handleConfirm = async (flight: FlightModels) => {
+  const handleConfirm = async (flight: FlightModels, booking: BookingModels) => {
     try {
       const bookingDatas: BookingModels = {
-        bookingID: bookingData.find((x) => x.flightID === flight.flightID)?.bookingID || '',
-        userID: '',
-        flightID: '',
-        bookingPrice: 0,
-        paymentStatus: '',
+        ...booking,
+        bookingID:
+          bookingData.find((x) => x.flightID === flight.flightID && x.userID === booking.userID)
+            ?.bookingID || '',
         bookingConfirmation: 'confirmed',
-        seatAmount: 0,
       };
 
       await createBooking(bookingDatas);
 
-      const updatedFlights = await FetchFlights();
+      const updatedFlights = await FetchFlights('', '', '');
       setFlights(updatedFlights);
 
       const updatedBookings = await FetchBookings('');
@@ -128,21 +144,19 @@ export function FlightConfirmationView() {
     }
   };
 
-  const handleDeny = async (flight: FlightModels) => {
+  const handleDeny = async (flight: FlightModels, booking: BookingModels) => {
     try {
       const bookingDatas: BookingModels = {
-        bookingID: bookingData.find((x) => x.flightID === flight.flightID)?.bookingID || '',
-        userID: '',
-        flightID: '',
-        bookingPrice: 0,
-        paymentStatus: '',
+        ...booking,
+        bookingID:
+          bookingData.find((x) => x.flightID === flight.flightID && x.userID === booking.userID)
+            ?.bookingID || '',
         bookingConfirmation: 'denied',
-        seatAmount: 0,
       };
 
       await createBooking(bookingDatas);
 
-      const updatedFlights = await FetchFlights();
+      const updatedFlights = await FetchFlights('', '', '');
       setFlights(updatedFlights);
 
       const updatedBookings = await FetchBookings('');
@@ -179,7 +193,7 @@ export function FlightConfirmationView() {
       </Box>
 
       <Card>
-        <UserTableToolbar
+        <ConfirmToolbar
           numSelected={table.selected.length}
           filterName={filterName}
           onFilterName={(event: React.ChangeEvent<HTMLInputElement>) => {
@@ -194,6 +208,7 @@ export function FlightConfirmationView() {
               <TableHead>
                 <TableRow>
                   <TableCell>Destination</TableCell>
+                  <TableCell>Username</TableCell>
                   <TableCell>From</TableCell>
                   <TableCell>Airline</TableCell>
                   <TableCell>Departure</TableCell>
@@ -246,11 +261,12 @@ export function FlightConfirmationView() {
                           <FlightConfirmationTableRow
                             key={booking.bookingID}
                             row={flight}
+                            userData={userData}
                             booking={booking} // Kirim juga data booking jika diperlukan
                             selected={table.selected.includes(flight.flightID)}
                             onSelectRow={() => table.onSelectRow(flight.flightID)}
-                            onConfirm={() => handleConfirm(flight)}
-                            onDeny={() => handleDeny(flight)}
+                            onConfirm={() => handleConfirm(flight, booking)}
+                            onDeny={() => handleDeny(flight, booking)}
                           />
                         );
                       })}

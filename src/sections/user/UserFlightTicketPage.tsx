@@ -16,6 +16,7 @@ import {
   Alert,
   Snackbar,
 } from '@mui/material';
+import { formatDateUTCOffset } from 'src/utils/dateUtils';
 import { FlightModels } from 'src/models/FlightModels';
 import { useRouter } from 'src/routes/hooks';
 import { UserModels } from 'src/models/UserModels';
@@ -122,7 +123,7 @@ const UserFlightTickets: React.FC<UserFlightTicketsProps> = ({ flights }) => {
         const [users, bookings, flightsPromise] = await Promise.allSettled([
           FetchUsers(),
           FetchBookings(userSess?.userID ?? ''),
-          FetchFlights(),
+          FetchFlights(from, destination, flightTime),
         ]);
 
         if (users.status === 'fulfilled') setUserData(users.value);
@@ -139,28 +140,32 @@ const UserFlightTickets: React.FC<UserFlightTicketsProps> = ({ flights }) => {
     }
 
     FetchData();
-  }, [userSess?.userID]);
+  }, [userSess?.userID, destination, flightTime, from]);
 
   const handlePayFlight = async (flight: FlightModels) => {
     if (!selectedFlight || !userSess) return;
 
     setBookingLoading(true);
     try {
+      const bookingEntry = bookingData.find(
+        (x) => x.flightID === flight.flightID && x.userID === userSess.userID
+      );
+
+      if (!bookingEntry) return; // early exit jika tidak ketemu
+
       const bookingDatas: BookingModels = {
-        bookingID:
-          bookingData.find((x) => x.flightID === flight.flightID && x.userID === userSess.userID)
-            ?.bookingID || '',
-        userID: '',
-        flightID: '',
-        bookingPrice: 0,
+        bookingID: bookingEntry.bookingID,
+        userID: bookingEntry.userID,
+        flightID: bookingEntry.flightID,
+        bookingPrice: bookingEntry.bookingPrice,
         paymentStatus: 'confirmed',
-        bookingConfirmation: '',
-        seatAmount: 0,
+        bookingConfirmation: bookingEntry.bookingConfirmation,
+        seatAmount: bookingEntry.seatAmount,
       };
 
       await updateBooking(bookingDatas);
 
-      const updatedFlights = await FetchFlights();
+      const updatedFlights = await FetchFlights(from, destination, flightTime);
       setFlightData(updatedFlights);
 
       const updatedBookings = await FetchBookings(userSess.userID);
@@ -171,6 +176,7 @@ const UserFlightTickets: React.FC<UserFlightTicketsProps> = ({ flights }) => {
       setSnackbarOpen(true);
 
       setOpenDetailPopup(false);
+      setSelectedFlight(null); // <- penting
     } catch (error) {
       setSnackbarMessage(`Failed to pay ticket: ${error.message}`);
       setSnackbarSeverity('error');
@@ -182,6 +188,19 @@ const UserFlightTickets: React.FC<UserFlightTicketsProps> = ({ flights }) => {
 
   const handleSnackbarClose = () => {
     setSnackbarOpen(false);
+  };
+
+  const selectedBooking = bookingData.find(
+    (x) => x.flightID === selectedFlight?.flightID && x.userID === userSess?.userID
+  );
+
+  const handleSearch = () => {
+    const queryParams = new URLSearchParams();
+    if (from) queryParams.append('from', from);
+    if (destination) queryParams.append('destination', destination);
+    if (flightTime) queryParams.append('departure', flightTime);
+
+    router.replace(`/book-ticket?${queryParams.toString()}`);
   };
 
   return (
@@ -290,7 +309,7 @@ const UserFlightTickets: React.FC<UserFlightTicketsProps> = ({ flights }) => {
               variant="contained"
               sx={{ px: 4 }}
               onClick={() => {
-                router.replace('book-ticket');
+                handleSearch();
               }}
             >
               Search
@@ -300,77 +319,95 @@ const UserFlightTickets: React.FC<UserFlightTicketsProps> = ({ flights }) => {
       </Box>
 
       {/* Flight List */}
-      <Container sx={{ py: 6 }}>
+      <Container sx={{ py: 6, minHeight: '35vh' }}>
         <Typography variant="h5" gutterBottom fontWeight="medium">
           My Booked Flights
         </Typography>
 
         <Grid container spacing={3}>
-          {bookingData
-            .filter((booking) => booking.userID === userSess?.userID)
-            .map((booking) => {
-              const flight = flightData.find((f) => f.flightID === booking.flightID);
-              if (!flight) return null;
+          {bookingData.length > 0 ? (
+            bookingData
+              .filter((booking) => booking.userID === userSess?.userID)
+              .map((booking) => {
+                const flight = flightData.find((f) => f.flightID === booking.flightID);
+                if (!flight) return null;
 
-              return (
-                <Grid item xs={12} sm={6} md={4} key={booking.bookingID}>
-                  <Box
-                    onClick={() => {
-                      setSelectedFlight(flight);
-                      setOpenDetailPopup(true);
-                    }}
-                    sx={{
-                      cursor: 'pointer',
-                      borderRadius: 4,
-                      boxShadow: 3,
-                      backgroundColor: '#fdfdfd',
-                      transition: 'transform 0.2s',
-                      '&:hover': {
-                        transform: 'scale(1.02)',
-                      },
-                    }}
-                  >
-                    <Card sx={{ boxShadow: 'none', borderRadius: 0 }}>
-                      <CardContent>
-                        <Typography variant="h6" gutterBottom color="primary">
-                          {flight.flightFrom} ➔ {flight.flightDestination}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Flight ID: {flight.flightID}
-                        </Typography>
-                        <Typography variant="body1" sx={{ mt: 1 }}>
-                          Departure: {new Date(flight.flightTime).toUTCString()}
-                        </Typography>
-                        <Typography variant="body1">
-                          Arrival: {new Date(flight.flightArrival).toUTCString()}
-                        </Typography>
-                        <Typography variant="body1">
-                          Seats Booked: {booking.seatAmount} / {flight.flightSeat}
-                        </Typography>
-                        <Typography variant="body1">
-                          Price:{' '}
-                          {Intl.NumberFormat('id-ID', {
-                            style: 'currency',
-                            currency: 'IDR',
-                          }).format(booking.bookingPrice)}
-                        </Typography>
+                return (
+                  <Grid item xs={12} sm={6} md={4} key={booking.bookingID}>
+                    <Box
+                      sx={{
+                        cursor: 'pointer',
+                        borderRadius: 4,
+                        boxShadow: 3,
+                        backgroundColor: '#fdfdfd',
+                        transition: 'transform 0.2s',
+                        '&:hover': {
+                          transform: 'scale(1.02)',
+                        },
+                      }}
+                    >
+                      <Card sx={{ boxShadow: 'none', borderRadius: 0 }}>
+                        <CardContent>
+                          <Typography variant="h6" gutterBottom color="primary">
+                            {flight.flightFrom} ➔ {flight.flightDestination}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            Flight ID: {flight.flightID}
+                          </Typography>
+                          <Typography variant="body1" sx={{ mt: 1 }}>
+                            Departure: {formatDateUTCOffset(flight.flightTime, 7)} WIB
+                          </Typography>
+                          <Typography variant="body1">
+                            Arrival: {formatDateUTCOffset(flight.flightArrival, 7)} WIB
+                          </Typography>
+                          <Typography variant="body1">
+                            Seats Booked: {booking.seatAmount}
+                          </Typography>
+                          <Typography variant="body1">
+                            Price:{' '}
+                            {Intl.NumberFormat('id-ID', {
+                              style: 'currency',
+                              currency: 'IDR',
+                            }).format(booking.bookingPrice)}
+                          </Typography>
 
-                        <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                          <Chip
-                            label={`Payment: ${booking.paymentStatus}`}
-                            color={getStatusColor(booking.paymentStatus)}
-                          />
-                          <Chip
-                            label={`Status: ${booking.bookingConfirmation}`}
-                            color={getStatusColor(booking.bookingConfirmation)}
-                          />
+                          <Box sx={{ mt: 2, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                            <Chip
+                              label={`Payment: ${booking.paymentStatus}`}
+                              color={getStatusColor(booking.paymentStatus)}
+                            />
+                            <Chip
+                              label={`Status: ${booking.bookingConfirmation}`}
+                              color={getStatusColor(booking.bookingConfirmation)}
+                            />
+                          </Box>
+                        </CardContent>
+                        <Box sx={{ p: 2, pt: 0 }}>
+                          {booking.paymentStatus === 'confirmed' ? null : (
+                            <Button
+                              variant="contained"
+                              fullWidth
+                              onClick={() => {
+                                setSelectedFlight(flight);
+                                setOpenDetailPopup(true);
+                              }}
+                            >
+                              Pay Ticket
+                            </Button>
+                          )}
                         </Box>
-                      </CardContent>
-                    </Card>
-                  </Box>
-                </Grid>
-              );
-            })}
+                      </Card>
+                    </Box>
+                  </Grid>
+                );
+              })
+          ) : (
+            <Grid item xs={12}>
+              <Typography variant="body1" color="text.secondary" align="center">
+                No bookings found.
+              </Typography>
+            </Grid>
+          )}
         </Grid>
       </Container>
 
@@ -384,19 +421,16 @@ const UserFlightTickets: React.FC<UserFlightTicketsProps> = ({ flights }) => {
         </Typography>
       </Box>
 
-      {selectedFlight && (
+      {selectedFlight && selectedBooking && (
         <PayFlightPopup
           open={openDetailPopup}
           onClose={() => setOpenDetailPopup(false)}
           onPay={() => handlePayFlight(selectedFlight)}
           flight={selectedFlight}
           airlineData={userData}
-          seatCount={
-            bookingData.find(
-              (x) => x.flightID === selectedFlight.flightID && x.userID === userSess?.userID
-            )?.seatAmount || 0
-          }
+          seatCount={selectedBooking.seatAmount}
           bookingLoading={bookingLoading}
+          booking={selectedBooking}
         />
       )}
 

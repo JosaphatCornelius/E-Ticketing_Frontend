@@ -97,7 +97,7 @@ export function AnalyticsWidgetSummary({
     >
       <Box sx={{ width: 48, height: 48, mb: 3 }}>{icon}</Box>
 
-      {renderTrending}
+      {/* {renderTrending} */}
 
       <Box
         sx={{
@@ -112,13 +112,13 @@ export function AnalyticsWidgetSummary({
           <Box sx={{ typography: 'h4' }}>{fShortenNumber(total)}</Box>
         </Box>
 
-        <Chart
+        {/* <Chart
           type="line"
           series={[{ data: chart.series }]}
           options={chartOptions}
           width={84}
           height={56}
-        />
+        /> */}
       </Box>
 
       <SvgColor
